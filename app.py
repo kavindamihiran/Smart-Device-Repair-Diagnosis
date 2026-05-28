@@ -1,0 +1,322 @@
+# =========================================================
+# Smart Laptop & Phone Repair Diagnosis Expert System
+# File: app.py
+# Frontend: Tkinter UI
+# Backend: SWI-Prolog file repair_expert.pl
+# =========================================================
+
+import os
+import re
+import subprocess
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROLOG_FILE = os.path.join(BASE_DIR, "repair_expert.pl")
+CUSTOM_FILE = os.path.join(BASE_DIR, "custom_cases.pl")
+
+SYMPTOMS = {
+    "laptop": [
+        ("no_power", "Does not power on"),
+        ("no_charging", "Does not charge"),
+        ("battery_drain", "Battery drains quickly"),
+        ("random_shutdown", "Random shutdown"),
+        ("overheating", "Overheating"),
+        ("loud_fan", "Fan is very loud"),
+        ("black_screen", "Black screen"),
+        ("display_flicker", "Display flickering"),
+        ("slow_performance", "Slow performance"),
+        ("boot_failure", "Boot failure"),
+        ("clicking_sound", "Clicking sound from storage"),
+        ("keyboard_not_working", "Keyboard not working"),
+        ("wifi_not_working", "Wi-Fi not working"),
+        ("virus_popups", "Unwanted popups / suspicious apps"),
+        ("blue_screen", "Blue screen / system crash"),
+    ],
+    "phone": [
+        ("no_power", "Does not power on"),
+        ("no_charging", "Does not charge"),
+        ("battery_drain", "Battery drains quickly"),
+        ("random_shutdown", "Random shutdown"),
+        ("overheating", "Overheating"),
+        ("cracked_screen", "Cracked screen"),
+        ("black_screen", "Black screen"),
+        ("touch_not_working", "Touch not working"),
+        ("slow_performance", "Slow performance"),
+        ("storage_full", "Storage full"),
+        ("wifi_not_working", "Wi-Fi not working"),
+        ("camera_not_working", "Camera not working"),
+        ("speaker_not_working", "Speaker not working"),
+        ("water_damage", "Water damage"),
+        ("boot_loop", "Phone stuck in boot loop"),
+    ],
+}
+
+
+def safe_atom(text: str) -> str:
+    """Convert user text to a safe Prolog atom-like identifier."""
+    text = text.lower().strip()
+    text = re.sub(r"[^a-z0-9_]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+    return text or "custom_fault"
+
+
+def prolog_list(items):
+    """Build a Prolog list of atoms from Python strings."""
+    return "[" + ",".join(items) + "]"
+
+
+def run_prolog_diagnosis(device, symptoms):
+    """Call SWI-Prolog and return parsed diagnosis rows."""
+    if not os.path.exists(PROLOG_FILE):
+        raise FileNotFoundError("repair_expert.pl was not found in the project folder.")
+
+    goal = f"run_diagnosis({device}, {prolog_list(symptoms)})"
+    command = ["swipl", "-q", "-s", PROLOG_FILE, "-g", goal]
+
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=BASE_DIR,
+        timeout=15,
+        check=False,
+    )
+
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.strip() or "SWI-Prolog failed to run.")
+
+    rows = []
+    for line in completed.stdout.splitlines():
+        parts = line.split("|")
+        if not parts:
+            continue
+        if parts[0] == "NO_RESULT":
+            rows.append({
+                "fault": "No strong match",
+                "score": "0",
+                "severity": "-",
+                "cost": "-",
+                "backup": "-",
+                "label": parts[1] if len(parts) > 1 else "No strong fault matched",
+                "advice": parts[2] if len(parts) > 2 else "Select more symptoms.",
+                "matched": "",
+            })
+        elif parts[0] == "RESULT" and len(parts) >= 9:
+            rows.append({
+                "fault": parts[1],
+                "score": parts[2],
+                "severity": parts[3],
+                "cost": parts[4],
+                "backup": parts[5],
+                "label": parts[6],
+                "advice": parts[7],
+                "matched": parts[8],
+            })
+    return rows
+
+
+class RepairDiagnosisApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Smart Device Repair Diagnosis Expert System")
+        self.geometry("1100x720")
+        self.minsize(950, 620)
+        self.configure(bg="#f4f7fb")
+
+        self.device_var = tk.StringVar(value="laptop")
+        self.symptom_vars = {}
+        self._build_style()
+        self._build_layout()
+        self.render_symptoms()
+
+    def _build_style(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TFrame", background="#f4f7fb")
+        style.configure("Card.TFrame", background="white", relief="flat")
+        style.configure("Title.TLabel", font=("Segoe UI", 22, "bold"), background="#f4f7fb", foreground="#172033")
+        style.configure("Sub.TLabel", font=("Segoe UI", 11), background="#f4f7fb", foreground="#596579")
+        style.configure("CardTitle.TLabel", font=("Segoe UI", 14, "bold"), background="white", foreground="#172033")
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=8)
+        style.configure("Accent.TButton", background="#2563eb", foreground="white")
+        style.configure("TCheckbutton", background="white", font=("Segoe UI", 10))
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=30)
+        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
+
+    def _build_layout(self):
+        header = ttk.Frame(self)
+        header.pack(fill="x", padx=24, pady=(20, 10))
+        ttk.Label(header, text="Smart Laptop & Phone Repair Diagnosis", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(
+            header,
+            text="Rule-based Prolog expert system with a Tkinter graphical interface",
+            style="Sub.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
+        body = ttk.Frame(self)
+        body.pack(fill="both", expand=True, padx=24, pady=12)
+
+        left = ttk.Frame(body, style="Card.TFrame")
+        left.pack(side="left", fill="both", expand=False, padx=(0, 12), ipadx=18, ipady=16)
+
+        right = ttk.Frame(body, style="Card.TFrame")
+        right.pack(side="right", fill="both", expand=True, padx=(12, 0), ipadx=18, ipady=16)
+
+        ttk.Label(left, text="1. Select Device", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
+        device_row = ttk.Frame(left, style="Card.TFrame")
+        device_row.pack(anchor="w", padx=16, pady=(0, 16))
+        ttk.Radiobutton(device_row, text="Laptop", variable=self.device_var, value="laptop", command=self.render_symptoms).pack(side="left", padx=(0, 12))
+        ttk.Radiobutton(device_row, text="Phone", variable=self.device_var, value="phone", command=self.render_symptoms).pack(side="left")
+
+        ttk.Label(left, text="2. Select Symptoms", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(0, 8))
+
+        self.symptom_canvas = tk.Canvas(left, width=390, height=390, bg="white", highlightthickness=0)
+        self.symptom_frame = ttk.Frame(self.symptom_canvas, style="Card.TFrame")
+        self.symptom_scroll = ttk.Scrollbar(left, orient="vertical", command=self.symptom_canvas.yview)
+        self.symptom_canvas.configure(yscrollcommand=self.symptom_scroll.set)
+        self.symptom_canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=(0, 12))
+        self.symptom_scroll.pack(side="right", fill="y", padx=(0, 16), pady=(0, 12))
+        self.symptom_canvas.create_window((0, 0), window=self.symptom_frame, anchor="nw")
+        self.symptom_frame.bind("<Configure>", lambda e: self.symptom_canvas.configure(scrollregion=self.symptom_canvas.bbox("all")))
+
+        button_row = ttk.Frame(left, style="Card.TFrame")
+        button_row.pack(fill="x", padx=16, pady=(0, 16))
+        ttk.Button(button_row, text="Diagnose Now", style="Accent.TButton", command=self.diagnose).pack(side="left", fill="x", expand=True)
+        ttk.Button(button_row, text="Clear", command=self.clear_selection).pack(side="left", padx=(10, 0))
+
+        ttk.Label(right, text="Diagnosis Results", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
+        columns = ("score", "fault", "severity", "cost", "backup")
+        self.tree = ttk.Treeview(right, columns=columns, show="headings", height=8)
+        for col, width in [("score", 70), ("fault", 240), ("severity", 100), ("cost", 90), ("backup", 110)]:
+            self.tree.heading(col, text=col.title())
+            self.tree.column(col, width=width, anchor="w")
+        self.tree.pack(fill="x", padx=16, pady=(0, 12))
+        self.tree.bind("<<TreeviewSelect>>", self.show_selected_detail)
+
+        ttk.Label(right, text="Repair Advice", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(8, 8))
+        self.detail = tk.Text(right, height=10, wrap="word", font=("Segoe UI", 11), bg="#f8fafc", relief="flat")
+        self.detail.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+        admin = ttk.Frame(right, style="Card.TFrame")
+        admin.pack(fill="x", padx=16, pady=(0, 16))
+        ttk.Button(admin, text="Add Custom Repair Case", command=self.add_custom_case_window).pack(side="left")
+        ttk.Button(admin, text="Open Project Folder", command=self.open_folder_hint).pack(side="left", padx=10)
+
+    def render_symptoms(self):
+        for child in self.symptom_frame.winfo_children():
+            child.destroy()
+        self.symptom_vars.clear()
+        device = self.device_var.get()
+        for atom, label in SYMPTOMS[device]:
+            var = tk.BooleanVar(value=False)
+            self.symptom_vars[atom] = var
+            ttk.Checkbutton(self.symptom_frame, text=label, variable=var).pack(anchor="w", pady=4, padx=4)
+
+    def selected_symptoms(self):
+        return [atom for atom, var in self.symptom_vars.items() if var.get()]
+
+    def clear_selection(self):
+        for var in self.symptom_vars.values():
+            var.set(False)
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+        self.detail.delete("1.0", "end")
+
+    def diagnose(self):
+        symptoms = self.selected_symptoms()
+        if not symptoms:
+            messagebox.showwarning("No symptoms", "Please select at least one symptom.")
+            return
+        try:
+            rows = run_prolog_diagnosis(self.device_var.get(), symptoms)
+        except Exception as exc:
+            messagebox.showerror("Prolog Error", str(exc))
+            return
+
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+        self.results = rows
+        for idx, row in enumerate(rows):
+            self.tree.insert("", "end", iid=str(idx), values=(
+                row["score"] + "%" if row["score"].isdigit() else row["score"],
+                row["label"],
+                row["severity"],
+                row["cost"],
+                row["backup"],
+            ))
+        if rows:
+            self.tree.selection_set("0")
+            self.show_selected_detail()
+
+    def show_selected_detail(self, event=None):
+        selected = self.tree.selection()
+        if not selected:
+            return
+        row = self.results[int(selected[0])]
+        text = (
+            f"Fault: {row['label']}\n"
+            f"Confidence Score: {row['score']}%\n"
+            f"Severity: {row['severity']}\n"
+            f"Estimated Cost: {row['cost']}\n"
+            f"Backup Needed: {row['backup']}\n\n"
+            f"Matched Symptoms: {row['matched']}\n\n"
+            f"Repair Advice:\n{row['advice']}\n"
+        )
+        self.detail.delete("1.0", "end")
+        self.detail.insert("1.0", text)
+
+    def add_custom_case_window(self):
+        win = tk.Toplevel(self)
+        win.title("Add Custom Repair Case")
+        win.geometry("520x520")
+        win.configure(bg="#f4f7fb")
+
+        fields = {}
+        labels = [
+            ("device", "Device (laptop/phone)"),
+            ("fault", "Fault name"),
+            ("symptoms", "Symptoms, comma separated atoms"),
+            ("severity", "Severity (low/medium/high/critical)"),
+            ("cost", "Cost (low/medium/high)"),
+            ("backup", "Backup needed (yes/no)"),
+            ("advice", "Repair advice"),
+        ]
+        for key, label in labels:
+            ttk.Label(win, text=label, background="#f4f7fb", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=18, pady=(10, 2))
+            entry = ttk.Entry(win, width=70)
+            entry.pack(fill="x", padx=18)
+            fields[key] = entry
+
+        fields["device"].insert(0, self.device_var.get())
+        fields["severity"].insert(0, "medium")
+        fields["cost"].insert(0, "medium")
+        fields["backup"].insert(0, "no")
+
+        def save_case():
+            device = safe_atom(fields["device"].get())
+            fault = safe_atom(fields["fault"].get())
+            symptoms = [safe_atom(s) for s in fields["symptoms"].get().split(",") if s.strip()]
+            severity = safe_atom(fields["severity"].get())
+            cost = safe_atom(fields["cost"].get())
+            backup = safe_atom(fields["backup"].get())
+            advice = fields["advice"].get().replace('"', "'")
+            label = fields["fault"].get().replace('"', "'").strip() or fault
+            if not symptoms:
+                messagebox.showwarning("Missing symptoms", "Add at least one symptom atom.")
+                return
+            with open(CUSTOM_FILE, "a", encoding="utf-8") as f:
+                f.write(f'\nfault_info({fault}, {device}, "{label}", {severity}, {cost}, "{advice}", {backup}).\n')
+                f.write(f'fault_symptoms({device}, {fault}, {prolog_list(symptoms)}).\n')
+            messagebox.showinfo("Saved", "Custom case saved to custom_cases.pl. Restart app or diagnose again.")
+            win.destroy()
+
+        ttk.Button(win, text="Save Custom Case", command=save_case).pack(pady=20)
+
+    def open_folder_hint(self):
+        messagebox.showinfo("Project Folder", f"Project folder:\n{BASE_DIR}")
+
+
+if __name__ == "__main__":
+    app = RepairDiagnosisApp()
+    app.mainloop()
