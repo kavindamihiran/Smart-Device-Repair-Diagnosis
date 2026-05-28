@@ -149,6 +149,38 @@ fault_symptoms(phone, phone_boot_loop_fault,
     [boot_loop, random_shutdown]).
 
 % -----------------------------
+% Repair Worthiness Advisor
+% repair_decision(Cost, Severity, Decision).
+% Combines cost and severity to recommend: repair, replace, or backup_and_repair.
+% -----------------------------
+repair_decision(high, critical, replace_device).
+repair_decision(high, high, consider_replacing).
+repair_decision(high, medium, backup_and_repair).
+repair_decision(high, low, repair_device).
+repair_decision(medium, critical, backup_and_repair).
+repair_decision(medium, high, repair_device).
+repair_decision(medium, medium, repair_device).
+repair_decision(medium, low, repair_device).
+repair_decision(low, critical, backup_and_repair).
+repair_decision(low, high, repair_device).
+repair_decision(low, medium, repair_device).
+repair_decision(low, low, repair_device).
+
+% Get a human-readable decision label for a fault.
+get_decision(Cost, Severity, BackupNeeded, Decision) :-
+    repair_decision(Cost, Severity, BaseDecision),
+    ( BackupNeeded = yes, BaseDecision = repair_device
+      -> Decision = backup_and_repair
+      ;  Decision = BaseDecision
+    ).
+get_decision(_, _, _, repair_device).  % fallback
+
+decision_label(replace_device, "Replace Device").
+decision_label(consider_replacing, "Consider Replacing").
+decision_label(backup_and_repair, "Backup Data & Repair").
+decision_label(repair_device, "Repair Device").
+
+% -----------------------------
 % Dynamic observed symptoms
 % -----------------------------
 clear_observations :- retractall(observed_symptom(_)).
@@ -182,27 +214,23 @@ likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     score_fault(Device, Fault, Score, MatchCount, Total, Matched),
     Score >= 50.
 
+% Sort by score descending. predsort comparator receives full result rows.
+compare_score(Order, result(_, ScoreA, _, _, _, _, _, _, _, _),
+                    result(_, ScoreB, _, _, _, _, _, _, _, _)) :-
+    ( ScoreA > ScoreB -> Order = '<'
+    ; ScoreA < ScoreB -> Order = '>'
+    ; Order = '<'
+    ).
+
 make_result(Device,
-            result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched)) :-
-    likely_fault(Device, Fault, Score, _MatchCount, _Total, Matched),
+            result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched, MatchCount, Total)) :-
+    likely_fault(Device, Fault, Score, MatchCount, Total, Matched),
     fault_info(Fault, Device, Label, Severity, Cost, Advice, BackupNeeded).
 
 diagnose(Device, ResultsSorted) :-
     findall(Result, make_result(Device, Result), Results),
     list_to_set(Results, Unique),
-    sort_results_desc_keyed(Unique, ResultsSorted).
-
-% Sort results by score descending using key-based msort.
-% Since msort uses standard term ordering and result/8 starts with Fault atom,
-% we wrap each result with its score as the primary sort key.
-sort_results_desc_keyed(Results, Sorted) :-
-    maplist(add_score_key, Results, Keyed),
-    msort(Keyed, KeyedAsc),
-    reverse(KeyedAsc, KeyedDesc),
-    maplist(remove_score_key, KeyedDesc, Sorted).
-
-add_score_key(result(F, Score, L, S, C, B, A, M), Score-result(F, Score, L, S, C, B, A, M)).
-remove_score_key(_-Result, Result).
+    predsort(compare_score, Unique, ResultsSorted).
 
 % -----------------------------
 % Console and UI output
@@ -219,10 +247,12 @@ print_results([]) :-
 print_results(Results) :-
     forall(member(R, Results), print_result_line(R)).
 
-print_result_line(result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched)) :-
+print_result_line(result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched, MatchCount, Total)) :-
     atomic_list_concat(Matched, ',', MatchedText),
-    format('RESULT|~w|~d|~w|~w|~w|~w|~s|~s|~n',
-           [Fault, Score, Severity, Cost, BackupNeeded, Label, Advice, MatchedText]).
+    get_decision(Cost, Severity, BackupNeeded, Decision),
+    decision_label(Decision, DecisionLabel),
+    format('RESULT|~w|~d|~d|~d|~w|~w|~w|~w|~s|~s|~s|~n',
+           [Fault, Score, MatchCount, Total, Severity, Cost, BackupNeeded, Label, Advice, MatchedText, DecisionLabel]).
 
 % Backtracking demonstration: prints all known faults one by one.
 list_all_faults :-

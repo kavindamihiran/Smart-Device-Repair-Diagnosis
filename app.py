@@ -95,6 +95,8 @@ def run_prolog_diagnosis(device, symptoms):
             rows.append({
                 "fault": "No strong match",
                 "score": "0",
+                "match_count": "0",
+                "match_total": "0",
                 "severity": "-",
                 "cost": "-",
                 "backup": "-",
@@ -102,16 +104,19 @@ def run_prolog_diagnosis(device, symptoms):
                 "advice": parts[2] if len(parts) > 2 else "Select more symptoms.",
                 "matched": "",
             })
-        elif parts[0] == "RESULT" and len(parts) >= 9:
+        elif parts[0] == "RESULT" and len(parts) >= 12:
             rows.append({
                 "fault": parts[1],
                 "score": parts[2],
-                "severity": parts[3],
-                "cost": parts[4],
-                "backup": parts[5],
-                "label": parts[6],
-                "advice": parts[7],
-                "matched": parts[8],
+                "match_count": parts[3],
+                "match_total": parts[4],
+                "severity": parts[5],
+                "cost": parts[6],
+                "backup": parts[7],
+                "label": parts[8],
+                "advice": parts[9],
+                "matched": parts[10],
+                "decision": parts[11],
             })
     return rows
 
@@ -186,17 +191,48 @@ class RepairDiagnosisApp(tk.Tk):
         ttk.Button(button_row, text="Clear", command=self.clear_selection).pack(side="left", padx=(10, 0))
 
         ttk.Label(right, text="Diagnosis Results", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
-        columns = ("score", "fault", "severity", "cost", "backup")
+        columns = ("match", "fault", "severity", "cost", "backup", "decision")
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=8)
-        for col, width in [("score", 70), ("fault", 240), ("severity", 100), ("cost", 90), ("backup", 110)]:
-            self.tree.heading(col, text=col.title())
+        for col, heading, width in [("match", "Match", 70), ("fault", "Fault", 200), ("severity", "Severity", 80), ("cost", "Cost", 70), ("backup", "Backup", 80), ("decision", "Decision", 130)]:
+            self.tree.heading(col, text=heading)
             self.tree.column(col, width=width, anchor="w")
         self.tree.pack(fill="x", padx=16, pady=(0, 12))
         self.tree.bind("<<TreeviewSelect>>", self.show_selected_detail)
 
-        ttk.Label(right, text="Repair Advice", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(8, 8))
-        self.detail = tk.Text(right, height=10, wrap="word", font=("Segoe UI", 11), bg="#f8fafc", relief="flat")
-        self.detail.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        # --- Detail area: 3 separate boxes ---
+        detail_area = ttk.Frame(right, style="Card.TFrame")
+        detail_area.pack(fill="both", expand=True, padx=16, pady=(8, 8))
+
+        # Box 1: Fault Summary
+        self.box_summary = tk.Frame(detail_area, bg="#eef2ff", relief="groove", bd=1, padx=14, pady=10)
+        self.box_summary.pack(fill="x", pady=(0, 6))
+        self.lbl_fault_name = tk.Label(self.box_summary, text="—", font=("Segoe UI", 13, "bold"), bg="#eef2ff", fg="#172033", anchor="w")
+        self.lbl_fault_name.pack(fill="x")
+        self.summary_grid = tk.Frame(self.box_summary, bg="#eef2ff")
+        self.summary_grid.pack(fill="x", pady=(6, 0))
+        self._summary_labels = {}
+        for col, key in enumerate(["Match", "Severity", "Cost", "Backup"]):
+            tk.Label(self.summary_grid, text=key, font=("Segoe UI", 9, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 24))
+            lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 10), bg="#eef2ff", fg="#172033")
+            lbl.grid(row=1, column=col, sticky="w", padx=(0, 24))
+            self._summary_labels[key] = lbl
+
+        # Box 2: Repair Decision
+        self.box_decision = tk.Frame(detail_area, bg="#f0fdf4", relief="groove", bd=1, padx=14, pady=10)
+        self.box_decision.pack(fill="x", pady=(0, 6))
+        tk.Label(self.box_decision, text="Repair Decision", font=("Segoe UI", 9, "bold"), bg="#f0fdf4", fg="#596579", anchor="w").pack(fill="x")
+        self.lbl_decision = tk.Label(self.box_decision, text="—", font=("Segoe UI", 12, "bold"), bg="#f0fdf4", fg="#16a34a", anchor="w")
+        self.lbl_decision.pack(fill="x", pady=(2, 0))
+
+        # Box 3: Matched Symptoms + Repair Advice
+        self.box_advice = tk.Frame(detail_area, bg="#fffbeb", relief="groove", bd=1, padx=14, pady=10)
+        self.box_advice.pack(fill="both", expand=True, pady=(0, 0))
+        tk.Label(self.box_advice, text="Matched Symptoms", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
+        self.lbl_symptoms = tk.Label(self.box_advice, text="—", font=("Segoe UI", 10), bg="#fffbeb", fg="#475569", anchor="w", wraplength=500, justify="left")
+        self.lbl_symptoms.pack(fill="x", pady=(2, 8))
+        tk.Label(self.box_advice, text="Repair Advice", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
+        self.lbl_advice = tk.Label(self.box_advice, text="—", font=("Segoe UI", 10), bg="#fffbeb", fg="#1e3a5f", anchor="nw", wraplength=500, justify="left")
+        self.lbl_advice.pack(fill="both", expand=True, pady=(2, 0))
 
         admin = ttk.Frame(right, style="Card.TFrame")
         admin.pack(fill="x", padx=16, pady=(0, 16))
@@ -221,7 +257,16 @@ class RepairDiagnosisApp(tk.Tk):
             var.set(False)
         for row in self.tree.get_children():
             self.tree.delete(row)
-        self.detail.delete("1.0", "end")
+        self._clear_detail_boxes()
+
+    def _clear_detail_boxes(self):
+        self.lbl_fault_name.config(text="—")
+        for lbl in self._summary_labels.values():
+            lbl.config(text="—", fg="#172033")
+        self.lbl_decision.config(text="—", fg="#16a34a", bg="#f0fdf4")
+        self.box_decision.config(bg="#f0fdf4")
+        self.lbl_symptoms.config(text="—")
+        self.lbl_advice.config(text="—")
 
     def diagnose(self):
         symptoms = self.selected_symptoms()
@@ -239,32 +284,55 @@ class RepairDiagnosisApp(tk.Tk):
         self.results = rows
         for idx, row in enumerate(rows):
             self.tree.insert("", "end", iid=str(idx), values=(
-                row["score"] + "%" if row["score"].isdigit() else row["score"],
+                f"{row['match_count']}/{row['match_total']}",
                 row["label"],
                 row["severity"],
                 row["cost"],
                 row["backup"],
+                row.get("decision", "-"),
             ))
         if rows:
             self.tree.selection_set("0")
             self.show_selected_detail()
+
+    def _severity_color(self, severity):
+        return {"low": "#16a34a", "medium": "#d97706", "high": "#ea580c", "critical": "#dc2626"}.get(severity, "#172033")
+
+    def _decision_style(self, decision):
+        d = decision.lower()
+        if "replace" in d:
+            return "#dc2626", "#fef2f2"
+        elif "backup" in d:
+            return "#d97706", "#fffbeb"
+        else:
+            return "#16a34a", "#f0fdf4"
 
     def show_selected_detail(self, event=None):
         selected = self.tree.selection()
         if not selected:
             return
         row = self.results[int(selected[0])]
-        text = (
-            f"Fault: {row['label']}\n"
-            f"Confidence Score: {row['score']}%\n"
-            f"Severity: {row['severity']}\n"
-            f"Estimated Cost: {row['cost']}\n"
-            f"Backup Needed: {row['backup']}\n\n"
-            f"Matched Symptoms: {row['matched']}\n\n"
-            f"Repair Advice:\n{row['advice']}\n"
-        )
-        self.detail.delete("1.0", "end")
-        self.detail.insert("1.0", text)
+
+        # Box 1: Summary
+        self.lbl_fault_name.config(text=row["label"])
+        self._summary_labels["Match"].config(text=f"{row['match_count']}/{row['match_total']}")
+        self._summary_labels["Severity"].config(text=row["severity"].upper(), fg=self._severity_color(row["severity"]))
+        self._summary_labels["Cost"].config(text=row["cost"])
+        self._summary_labels["Backup"].config(text=row["backup"])
+
+        # Box 2: Decision
+        decision = row.get("decision", "-")
+        fg, bg = self._decision_style(decision)
+        self.lbl_decision.config(text=f"➤  {decision}", fg=fg, bg=bg)
+        self.box_decision.config(bg=bg)
+        for w in self.box_decision.winfo_children():
+            if isinstance(w, tk.Label) and w != self.lbl_decision:
+                w.config(bg=bg)
+
+        # Box 3: Symptoms + Advice
+        matched = row["matched"].replace(",", ",  ") if row["matched"] else "—"
+        self.lbl_symptoms.config(text=matched)
+        self.lbl_advice.config(text=row["advice"])
 
     def add_custom_case_window(self):
         win = tk.Toplevel(self)
