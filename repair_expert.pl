@@ -62,10 +62,13 @@ symptom(phone, boot_loop, "Phone stuck in boot loop").
 
 % -----------------------------
 % Fault information
-% fault_info(FaultAtom, Device, Label, Severity, Cost, Advice, BackupNeeded).
+
+% Device: laptop | phone
 % Severity: low | medium | high | critical
 % Cost: low | medium | high
 % BackupNeeded: yes | no
+
+% fault_info(FaultAtom, Device, Label, Severity, Cost, Advice, BackupNeeded).
 % -----------------------------
 fault_info(battery_failure, laptop, "Battery Failure", high, medium,
     "Replace the battery. Also check adapter health and charging cycle count.", no).
@@ -107,8 +110,9 @@ fault_info(phone_boot_loop_fault, phone, "Boot Loop / Firmware Issue", critical,
 
 % -----------------------------
 % Diagnostic rules
-% fault_symptoms(Device, FaultAtom, RequiredSymptoms).
 % A fault is likely when enough required symptoms are observed.
+
+% fault_symptoms(Device, FaultAtom, RequiredSymptoms).
 % -----------------------------
 fault_symptoms(laptop, battery_failure,
     [battery_drain, random_shutdown, no_power]).
@@ -150,17 +154,20 @@ fault_symptoms(phone, phone_boot_loop_fault,
 
 % -----------------------------
 % Repair Worthiness Advisor
-% repair_decision(Cost, Severity, Decision).
 % Combines cost and severity to recommend: repair, replace, or backup_and_repair.
+
+% repair_decision(Cost, Severity, Decision).
 % -----------------------------
 repair_decision(high, critical, replace_device).
 repair_decision(high, high, consider_replacing).
 repair_decision(high, medium, backup_and_repair).
 repair_decision(high, low, repair_device).
+
 repair_decision(medium, critical, backup_and_repair).
 repair_decision(medium, high, repair_device).
 repair_decision(medium, medium, repair_device).
 repair_decision(medium, low, repair_device).
+
 repair_decision(low, critical, backup_and_repair).
 repair_decision(low, high, repair_device).
 repair_decision(low, medium, repair_device).
