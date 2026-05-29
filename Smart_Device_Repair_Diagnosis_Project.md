@@ -250,11 +250,11 @@ In the presentation, you can say:
 | Laptop cooling issue | `overheating`, `loud_fan`, `slow_performance` | Cooling System Problem |
 | Laptop power and heat issue | `battery_drain`, `overheating` | Power and Thermal Issue |
 | Laptop thermal boot issue | `overheating`, `boot_failure` | Thermal Boot Instability, backup recommended |
-| Laptop storage failure | `boot_failure`, `clicking_sound`, `slow_performance` | Hard Disk / SSD Failure, backup required |
-| Phone display damage | `cracked_screen`, `black_screen`, `touch_not_working` | Display or Touch Panel Damage |
+| Laptop storage failure | `boot_failure`, `clicking_sound`, `slow_performance` | Hard Disk / SSD Failure, backup and repair recommended |
+| Phone display damage | `cracked_screen`, `black_screen`, `touch_not_working` | Display or Touch Panel Damage, replace faulty part |
 | Phone power and heat issue | `battery_drain`, `overheating` | Phone Power and Thermal Issue |
-| Phone liquid display issue | `water_damage`, `black_screen` | Liquid Display Damage, backup required |
-| Phone water damage | `water_damage`, `no_power`, `no_charging` | Water Damage, critical severity, backup required |
+| Phone liquid display issue | `water_damage`, `black_screen` | Liquid Display Damage, backup and repair recommended |
+| Phone water damage | `water_damage`, `no_power`, `no_charging` | Water Damage, critical severity, backup and repair recommended |
 | Phone storage overload | `storage_full`, `slow_performance` | Storage Overload |
 
 ---
@@ -325,12 +325,12 @@ RESULT|cooling_problem|75|3|4|high|medium|no|Cooling System Problem|Clean the fa
 |---|---|---|
 | T1 | No symptom selected | UI shows warning message. |
 | T2 | Laptop: overheating + loud_fan | Cooling problem appears in result list. |
-| T3 | Laptop: clicking_sound + boot_failure | Storage failure appears with backup warning. |
-| T4 | Phone: water_damage + no_power | Water damage appears as critical. |
-| T5 | Phone: cracked_screen + touch_not_working | Display/touch panel damage appears. |
+| T3 | Laptop: clicking_sound + boot_failure | Storage failure appears with Backup Data & Repair decision. |
+| T4 | Phone: water_damage + no_power | Water damage appears as critical with Backup Data & Repair decision. |
+| T5 | Phone: cracked_screen + touch_not_working | Display/touch panel damage appears with Replace Faulty Part decision. |
 | T6 | Add custom case | `custom_cases.pl` is updated and new case can be used. |
 | T7 | Laptop: battery_drain + overheating | Power and Thermal Issue appears instead of no result. |
-| T8 | Phone: water_damage + black_screen | Liquid Display Damage appears instead of no result. |
+| T8 | Phone: water_damage + black_screen | Liquid Display Damage appears with Backup Data & Repair decision. |
 | T9 | Multiple matching faults | Results are ranked by confidence score. |
 
 ### Evaluation Criteria
@@ -555,6 +555,39 @@ fault_symptoms(phone, phone_liquid_display_issue,
     [water_damage, cracked_screen, black_screen, touch_not_working]).
 
 % -----------------------------
+% Repair Worthiness Advisor
+% Combines cost, severity, and data risk to recommend a practical action.
+% -----------------------------
+repair_decision(high, critical, consider_replacing).
+repair_decision(high, high, replace_faulty_part).
+repair_decision(high, medium, repair_device).
+repair_decision(high, low, repair_device).
+
+repair_decision(medium, critical, backup_and_repair).
+repair_decision(medium, high, repair_device).
+repair_decision(medium, medium, repair_device).
+repair_decision(medium, low, repair_device).
+
+repair_decision(low, critical, backup_and_repair).
+repair_decision(low, high, repair_device).
+repair_decision(low, medium, repair_device).
+repair_decision(low, low, repair_device).
+
+get_decision(Cost, Severity, BackupNeeded, Decision) :-
+    repair_decision(Cost, Severity, BaseDecision),
+    ( BackupNeeded = yes
+      -> Decision = backup_and_repair
+      ;  Decision = BaseDecision
+    ).
+get_decision(_, _, _, repair_device).
+
+decision_label(replace_device, "Replace Device").
+decision_label(consider_replacing, "Compare Repair vs Replace").
+decision_label(replace_faulty_part, "Replace Faulty Part").
+decision_label(backup_and_repair, "Backup Data & Repair").
+decision_label(repair_device, "Repair Device").
+
+% -----------------------------
 % Dynamic observed symptoms
 % -----------------------------
 clear_observations :- retractall(observed_symptom(_)).
@@ -589,21 +622,22 @@ likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     Score >= 50.
 
 % Sort by score descending. predsort comparator receives full result rows.
-compare_score(Order, result(_, ScoreA, _, _, _, _, _, _),
-                    result(_, ScoreB, _, _, _, _, _, _)) :-
+compare_score(Order, result(_, ScoreA, _, _, _, _, _, _, _, _),
+                    result(_, ScoreB, _, _, _, _, _, _, _, _)) :-
     ( ScoreA > ScoreB -> Order = '<'
     ; ScoreA < ScoreB -> Order = '>'
-    ; Order = '='
+    ; Order = '<'
     ).
 
 make_result(Device,
-            result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched)) :-
-    likely_fault(Device, Fault, Score, _MatchCount, _Total, Matched),
+            result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched, MatchCount, Total)) :-
+    likely_fault(Device, Fault, Score, MatchCount, Total, Matched),
     fault_info(Fault, Device, Label, Severity, Cost, Advice, BackupNeeded).
 
 diagnose(Device, ResultsSorted) :-
     findall(Result, make_result(Device, Result), Results),
-    predsort(compare_score, Results, ResultsSorted).
+    list_to_set(Results, Unique),
+    predsort(compare_score, Unique, ResultsSorted).
 
 % -----------------------------
 % Console and UI output
@@ -620,10 +654,12 @@ print_results([]) :-
 print_results(Results) :-
     forall(member(R, Results), print_result_line(R)).
 
-print_result_line(result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched)) :-
+print_result_line(result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched, MatchCount, Total)) :-
     atomic_list_concat(Matched, ',', MatchedText),
-    format('RESULT|~w|~d|~w|~w|~w|~w|~s|~s|~n',
-           [Fault, Score, Severity, Cost, BackupNeeded, Label, Advice, MatchedText]).
+    get_decision(Cost, Severity, BackupNeeded, Decision),
+    decision_label(Decision, DecisionLabel),
+    format('RESULT|~w|~d|~d|~d|~w|~w|~w|~w|~s|~s|~s|~n',
+           [Fault, Score, MatchCount, Total, Severity, Cost, BackupNeeded, Label, Advice, MatchedText, DecisionLabel]).
 
 % Backtracking demonstration: prints all known faults one by one.
 list_all_faults :-

@@ -300,9 +300,9 @@ class RepairDiagnosisApp(tk.Tk):
 
     def _decision_style(self, decision):
         d = decision.lower()
-        if "replace" in d:
+        if "replace device" in d:
             return "#dc2626", "#fef2f2"
-        elif "backup" in d:
+        elif "backup" in d or "replace" in d or "compare" in d:
             return "#d97706", "#fffbeb"
         else:
             return "#16a34a", "#f0fdf4"
