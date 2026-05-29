@@ -248,8 +248,12 @@ In the presentation, you can say:
 |---|---|---|
 | Laptop battery issue | `battery_drain`, `random_shutdown`, `no_power` | Battery Failure, high severity, medium cost |
 | Laptop cooling issue | `overheating`, `loud_fan`, `slow_performance` | Cooling System Problem |
+| Laptop power and heat issue | `battery_drain`, `overheating` | Power and Thermal Issue |
+| Laptop thermal boot issue | `overheating`, `boot_failure` | Thermal Boot Instability, backup recommended |
 | Laptop storage failure | `boot_failure`, `clicking_sound`, `slow_performance` | Hard Disk / SSD Failure, backup required |
 | Phone display damage | `cracked_screen`, `black_screen`, `touch_not_working` | Display or Touch Panel Damage |
+| Phone power and heat issue | `battery_drain`, `overheating` | Phone Power and Thermal Issue |
+| Phone liquid display issue | `water_damage`, `black_screen` | Liquid Display Damage, backup required |
 | Phone water damage | `water_damage`, `no_power`, `no_charging` | Water Damage, critical severity, backup required |
 | Phone storage overload | `storage_full`, `slow_performance` | Storage Overload |
 
@@ -310,7 +314,7 @@ swipl
 Expected output line example:
 
 ```text
-RESULT|cooling_problem|75|high|medium|no|Cooling System Problem|Clean the fan...|overheating,loud_fan,random_shutdown
+RESULT|cooling_problem|75|3|4|high|medium|no|Cooling System Problem|Clean the fan...|overheating,loud_fan,random_shutdown|Repair Device
 ```
 
 ---
@@ -325,7 +329,9 @@ RESULT|cooling_problem|75|high|medium|no|Cooling System Problem|Clean the fan...
 | T4 | Phone: water_damage + no_power | Water damage appears as critical. |
 | T5 | Phone: cracked_screen + touch_not_working | Display/touch panel damage appears. |
 | T6 | Add custom case | `custom_cases.pl` is updated and new case can be used. |
-| T7 | Multiple matching faults | Results are ranked by confidence score. |
+| T7 | Laptop: battery_drain + overheating | Power and Thermal Issue appears instead of no result. |
+| T8 | Phone: water_damage + black_screen | Liquid Display Damage appears instead of no result. |
+| T9 | Multiple matching faults | Results are ranked by confidence score. |
 
 ### Evaluation Criteria
 
@@ -461,6 +467,12 @@ fault_info(keyboard_fault, laptop, "Keyboard Hardware Fault", medium, medium,
     "Check keyboard connector. Replace keyboard if multiple keys fail.", no).
 fault_info(wifi_adapter_fault, laptop, "Wi-Fi Adapter or Driver Fault", medium, low,
     "Reinstall network driver. If still failing, test or replace Wi-Fi adapter.", no).
+fault_info(power_thermal_issue, laptop, "Power and Thermal Issue", high, medium,
+    "Check battery health, fan operation, and heat buildup. Clean cooling parts before replacing hardware.", no).
+fault_info(thermal_boot_instability, laptop, "Thermal Boot Instability", high, medium,
+    "Clean the cooling system, check thermal paste, and run OS and memory diagnostics.", yes).
+fault_info(storage_or_system_crash, laptop, "Storage or System Crash", critical, high,
+    "Backup data immediately if possible. Test storage health and repair or reinstall the operating system.", yes).
 
 fault_info(phone_battery_failure, phone, "Phone Battery Failure", high, medium,
     "Replace battery. Check charging IC if battery replacement does not solve it.", no).
@@ -480,6 +492,12 @@ fault_info(phone_network_fault, phone, "Network / Wi-Fi Fault", medium, low,
     "Reset network settings, update software, and check antenna or Wi-Fi module.", no).
 fault_info(phone_boot_loop_fault, phone, "Boot Loop / Firmware Issue", critical, medium,
     "Backup if possible, then repair firmware. Avoid factory reset before data backup.", yes).
+fault_info(phone_power_thermal_issue, phone, "Phone Power and Thermal Issue", high, medium,
+    "Check battery health, charging circuit, and overheating causes. Replace battery if swelling or fast drain is found.", no).
+fault_info(phone_physical_display_power_issue, phone, "Physical Display and Power Issue", high, high,
+    "Inspect display assembly and battery connection. Replace damaged screen parts after checking power delivery.", no).
+fault_info(phone_liquid_display_issue, phone, "Liquid Display Damage", critical, high,
+    "Power off immediately. Do not charge. Clean the board and inspect the display connector and panel.", yes).
 
 % -----------------------------
 % Diagnostic rules
@@ -504,6 +522,12 @@ fault_symptoms(laptop, keyboard_fault,
     [keyboard_not_working]).
 fault_symptoms(laptop, wifi_adapter_fault,
     [wifi_not_working]).
+fault_symptoms(laptop, power_thermal_issue,
+    [battery_drain, overheating, loud_fan, random_shutdown]).
+fault_symptoms(laptop, thermal_boot_instability,
+    [overheating, loud_fan, boot_failure, blue_screen]).
+fault_symptoms(laptop, storage_or_system_crash,
+    [clicking_sound, random_shutdown, blue_screen, boot_failure]).
 
 fault_symptoms(phone, phone_battery_failure,
     [battery_drain, random_shutdown, no_power]).
@@ -523,6 +547,12 @@ fault_symptoms(phone, phone_network_fault,
     [wifi_not_working]).
 fault_symptoms(phone, phone_boot_loop_fault,
     [boot_loop, random_shutdown]).
+fault_symptoms(phone, phone_power_thermal_issue,
+    [battery_drain, overheating, random_shutdown, no_power]).
+fault_symptoms(phone, phone_physical_display_power_issue,
+    [battery_drain, cracked_screen, black_screen, touch_not_working]).
+fault_symptoms(phone, phone_liquid_display_issue,
+    [water_damage, cracked_screen, black_screen, touch_not_working]).
 
 % -----------------------------
 % Dynamic observed symptoms

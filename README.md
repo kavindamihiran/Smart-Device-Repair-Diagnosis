@@ -59,8 +59,12 @@ swipl
 |---|---|---|---|---|
 | Laptop battery | battery_drain, random_shutdown, no_power | Battery Failure | 3/3 | Repair Device |
 | Laptop cooling | overheating, loud_fan, slow_performance | Cooling System Problem | 3/4 | Repair Device |
+| Laptop power and heat | battery_drain, overheating | Power and Thermal Issue | 2/4 | Repair Device |
+| Laptop boot instability | overheating, boot_failure | Thermal Boot Instability | 2/4 | Backup Data & Repair |
 | Laptop storage | boot_failure, clicking_sound, slow_performance | Hard Disk / SSD Failure | 3/3 | Replace Device |
 | Phone display | cracked_screen, black_screen, touch_not_working | Display or Touch Panel Damage | 3/3 | Consider Replacing |
+| Phone power and heat | battery_drain, overheating | Phone Power and Thermal Issue | 2/4 | Repair Device |
+| Phone liquid display | water_damage, black_screen | Liquid Display Damage | 2/4 | Replace Device |
 | Phone water damage | water_damage, no_power, no_charging | Water Damage | 3/3 | Replace Device |
 | Phone storage | storage_full, slow_performance | Storage Overload | 2/2 | Backup Data & Repair |
 
@@ -76,4 +80,3 @@ repair_decision(low, low, repair_device).
 ```
 
 The decision combines **cost level** and **severity** of the fault. If backup is needed, the system upgrades `repair_device` to `backup_and_repair` automatically.
-
