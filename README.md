@@ -22,9 +22,42 @@ A rule-based expert system that diagnoses common laptop and phone repair issues 
 
 | File | Purpose |
 |---|---|
-| `repair_expert.pl` | Prolog facts, rules, dynamic predicates, and diagnosis engine |
+| `repair_expert.pl` | Main Prolog entry file that loads all backend modules |
+| `repair_devices_symptoms.pl` | Supported devices and symptom dictionary |
+| `repair_faults.pl` | Fault details, severity, cost, advice, and backup warnings |
+| `repair_rules.pl` | Diagnostic rules that connect faults to required symptoms |
+| `repair_decision.pl` | Repair worthiness and backup/repair decision rules |
+| `repair_engine.pl` | Working memory, symptom matching, scoring, and ranking logic |
+| `repair_io.pl` | Terminal output and Python UI output formatter |
+| `repair_admin.pl` | Predicates for adding/removing custom repair cases |
 | `app.py` | Python Tkinter graphical interface |
 | `custom_cases.pl` | Auto-generated file for custom repair cases (created when user adds cases) |
+
+## Prolog Module Structure
+
+The backend is split into small Prolog files to make the system easier to understand and explain. `repair_expert.pl` is still the only file that needs to be loaded directly. It uses `ensure_loaded/1` to load the other modules.
+
+```text
+repair_expert.pl
+  -> repair_devices_symptoms.pl
+  -> repair_faults.pl
+  -> repair_rules.pl
+  -> repair_decision.pl
+  -> repair_engine.pl
+  -> repair_io.pl
+  -> repair_admin.pl
+  -> custom_cases.pl, if it exists
+```
+
+Main diagnosis flow:
+
+```text
+run_diagnosis(Device, Symptoms)
+  -> clear_observations
+  -> add_symptom_list
+  -> diagnose
+  -> print_results
+```
 
 ## Requirements
 
@@ -51,6 +84,12 @@ python3 app.py
 swipl
 ?- [repair_expert].
 ?- run_diagnosis(laptop, [overheating, loud_fan, random_shutdown]).
+```
+
+You can also run a diagnosis directly from the terminal without opening the Prolog prompt:
+
+```bash
+swipl -q -s repair_expert.pl -g "run_diagnosis(laptop, [overheating,loud_fan,random_shutdown])"
 ```
 
 ## Sample Scenarios
