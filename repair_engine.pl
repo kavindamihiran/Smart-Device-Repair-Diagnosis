@@ -40,12 +40,15 @@ likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     score_fault(Device, Fault, Score, MatchCount, Total, Matched),
     Score >= 50.
 
-% Sort by score descending. predsort comparator receives full result rows.
-compare_score(Order, result(_, ScoreA, _, _, _, _, _, _, _, _),
-                    result(_, ScoreB, _, _, _, _, _, _, _, _)) :-
+compare_score(Order, result(FaultA, ScoreA, _, _, _, _, _, _, MatchA, TotalA),
+                    result(FaultB, ScoreB, _, _, _, _, _, _, MatchB, TotalB)) :-
     ( ScoreA > ScoreB -> Order = '<'
     ; ScoreA < ScoreB -> Order = '>'
-    ; Order = '<'
+    ; MatchA > MatchB -> Order = '<'
+    ; MatchA < MatchB -> Order = '>'
+    ; TotalA > TotalB -> Order = '<'
+    ; TotalA < TotalB -> Order = '>'
+    ; compare(Order, FaultA, FaultB)
     ).
 
 make_result(Device,
