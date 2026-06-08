@@ -188,9 +188,9 @@ class RepairDiagnosisApp(tk.Tk):
         ttk.Button(button_row, text="Clear", command=self.clear_selection).pack(side="left", padx=(10, 0))
 
         ttk.Label(right, text="Diagnosis Results", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
-        columns = ("match", "fault", "severity", "cost")
+        columns = ("match", "score", "fault", "severity", "cost")
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=8)
-        for col, heading, width in [("match", "Match", 70), ("fault", "Fault", 260), ("severity", "Severity", 90), ("cost", "Cost", 80)]:
+        for col, heading, width in [("match", "Match", 70), ("score", "Score", 70), ("fault", "Fault", 240), ("severity", "Severity", 90), ("cost", "Cost", 80)]:
             self.tree.heading(col, text=heading)
             self.tree.column(col, width=width, anchor="w")
         self.tree.pack(fill="x", padx=16, pady=(0, 12))
@@ -208,7 +208,7 @@ class RepairDiagnosisApp(tk.Tk):
         self.summary_grid = tk.Frame(self.box_summary, bg="#eef2ff")
         self.summary_grid.pack(fill="x", pady=(6, 0))
         self._summary_labels = {}
-        for col, key in enumerate(["Match", "Severity", "Cost"]):
+        for col, key in enumerate(["Match", "Score", "Severity", "Cost"]):
             tk.Label(self.summary_grid, text=key, font=("Segoe UI", 10, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 30))
             lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 12, "bold"), bg="#eef2ff", fg="#172033")
             lbl.grid(row=1, column=col, sticky="w", padx=(0, 24))
@@ -313,6 +313,7 @@ class RepairDiagnosisApp(tk.Tk):
         for idx, row in enumerate(rows):
             self.tree.insert("", "end", iid=str(idx), values=(
                 f"{row['match_count']}/{row['match_total']}",
+                f"{row['score']}%",
                 row["label"],
                 row["severity"],
                 row["cost"],
@@ -333,6 +334,7 @@ class RepairDiagnosisApp(tk.Tk):
         # Box 1: Summary
         self.lbl_fault_name.config(text=row["label"])
         self._summary_labels["Match"].config(text=f"{row['match_count']}/{row['match_total']}")
+        self._summary_labels["Score"].config(text=f"{row['score']}%")
         self._summary_labels["Severity"].config(text=row["severity"].upper(), fg=self._severity_color(row["severity"]))
         self._summary_labels["Cost"].config(text=row["cost"])
 
