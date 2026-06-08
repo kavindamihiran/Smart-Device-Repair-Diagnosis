@@ -11,28 +11,13 @@
 
 % Dynamic predicates can change while the program is running.
 :- dynamic observed_symptom/1.
-:- dynamic fault_info/7.
-:- dynamic fault_symptoms/3.
-
-% Multifile predicates can have facts spread across several files.
-:- multifile fault_info/7.
-:- multifile fault_symptoms/3.
 
 % Load each part of the expert system.
 :- ensure_loaded('repair_devices_symptoms.pl').
 :- ensure_loaded('repair_faults.pl').
 :- ensure_loaded('repair_rules.pl').
-:- ensure_loaded('repair_decision.pl').
 :- ensure_loaded('repair_engine.pl').
 :- ensure_loaded('repair_io.pl').
-:- ensure_loaded('repair_admin.pl').
-
-% Optional custom repair cases saved from the Python UI.
-:- initialization(load_custom_cases).
-load_custom_cases :-
-    exists_file('custom_cases.pl'), !,
-    consult('custom_cases.pl').
-load_custom_cases.
 
 % Example manual queries in SWI-Prolog:
 % ?- [repair_expert].

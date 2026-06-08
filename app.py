@@ -6,14 +6,12 @@
 # =========================================================
 
 import os
-import re
 import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROLOG_FILE = os.path.join(BASE_DIR, "repair_expert.pl")
-CUSTOM_FILE = os.path.join(BASE_DIR, "custom_cases.pl")
 
 SYMPTOMS = {
     "laptop": [
@@ -51,15 +49,6 @@ SYMPTOMS = {
         ("boot_loop", "Phone stuck in boot loop"),
     ],
 }
-
-
-def safe_atom(text: str) -> str:
-    """Convert user text to a safe Prolog atom-like identifier."""
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9_]+", "_", text)
-    text = re.sub(r"_+", "_", text).strip("_")
-    return text or "custom_fault"
-
 
 def prolog_list(items):
     """Build a Prolog list of atoms from Python strings."""
@@ -99,12 +88,11 @@ def run_prolog_diagnosis(device, symptoms):
                 "match_total": "0",
                 "severity": "-",
                 "cost": "-",
-                "backup": "-",
                 "label": parts[1] if len(parts) > 1 else "No strong fault matched",
                 "advice": parts[2] if len(parts) > 2 else "Select more symptoms.",
                 "matched": "",
             })
-        elif parts[0] == "RESULT" and len(parts) >= 12:
+        elif parts[0] == "RESULT" and len(parts) >= 10:
             rows.append({
                 "fault": parts[1],
                 "score": parts[2],
@@ -112,11 +100,9 @@ def run_prolog_diagnosis(device, symptoms):
                 "match_total": parts[4],
                 "severity": parts[5],
                 "cost": parts[6],
-                "backup": parts[7],
-                "label": parts[8],
-                "advice": parts[9],
-                "matched": parts[10],
-                "decision": parts[11],
+                "label": parts[7],
+                "advice": parts[8],
+                "matched": parts[9],
             })
     return rows
 
@@ -191,15 +177,15 @@ class RepairDiagnosisApp(tk.Tk):
         ttk.Button(button_row, text="Clear", command=self.clear_selection).pack(side="left", padx=(10, 0))
 
         ttk.Label(right, text="Diagnosis Results", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
-        columns = ("match", "fault", "severity", "cost", "backup", "decision")
+        columns = ("match", "fault", "severity", "cost")
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=8)
-        for col, heading, width in [("match", "Match", 70), ("fault", "Fault", 200), ("severity", "Severity", 80), ("cost", "Cost", 70), ("backup", "Backup", 80), ("decision", "Decision", 130)]:
+        for col, heading, width in [("match", "Match", 70), ("fault", "Fault", 260), ("severity", "Severity", 90), ("cost", "Cost", 80)]:
             self.tree.heading(col, text=heading)
             self.tree.column(col, width=width, anchor="w")
         self.tree.pack(fill="x", padx=16, pady=(0, 12))
         self.tree.bind("<<TreeviewSelect>>", self.show_selected_detail)
 
-        # --- Detail area: 3 separate boxes ---
+        # --- Detail area: summary and advice boxes ---
         detail_area = ttk.Frame(right, style="Card.TFrame")
         detail_area.pack(fill="both", expand=True, padx=16, pady=(8, 8))
 
@@ -211,20 +197,13 @@ class RepairDiagnosisApp(tk.Tk):
         self.summary_grid = tk.Frame(self.box_summary, bg="#eef2ff")
         self.summary_grid.pack(fill="x", pady=(6, 0))
         self._summary_labels = {}
-        for col, key in enumerate(["Match", "Severity", "Cost", "Backup"]):
+        for col, key in enumerate(["Match", "Severity", "Cost"]):
             tk.Label(self.summary_grid, text=key, font=("Segoe UI", 9, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 24))
             lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 10), bg="#eef2ff", fg="#172033")
             lbl.grid(row=1, column=col, sticky="w", padx=(0, 24))
             self._summary_labels[key] = lbl
 
-        # Box 2: Repair Decision
-        self.box_decision = tk.Frame(detail_area, bg="#f0fdf4", relief="groove", bd=1, padx=14, pady=10)
-        self.box_decision.pack(fill="x", pady=(0, 6))
-        tk.Label(self.box_decision, text="Repair Decision", font=("Segoe UI", 9, "bold"), bg="#f0fdf4", fg="#596579", anchor="w").pack(fill="x")
-        self.lbl_decision = tk.Label(self.box_decision, text="—", font=("Segoe UI", 12, "bold"), bg="#f0fdf4", fg="#16a34a", anchor="w")
-        self.lbl_decision.pack(fill="x", pady=(2, 0))
-
-        # Box 3: Matched Symptoms + Repair Advice
+        # Box 2: Matched Symptoms + Repair Advice
         self.box_advice = tk.Frame(detail_area, bg="#fffbeb", relief="groove", bd=1, padx=14, pady=10)
         self.box_advice.pack(fill="both", expand=True, pady=(0, 0))
         tk.Label(self.box_advice, text="Matched Symptoms", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
@@ -233,11 +212,6 @@ class RepairDiagnosisApp(tk.Tk):
         tk.Label(self.box_advice, text="Repair Advice", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
         self.lbl_advice = tk.Label(self.box_advice, text="—", font=("Segoe UI", 10), bg="#fffbeb", fg="#1e3a5f", anchor="nw", wraplength=500, justify="left")
         self.lbl_advice.pack(fill="both", expand=True, pady=(2, 0))
-
-        admin = ttk.Frame(right, style="Card.TFrame")
-        admin.pack(fill="x", padx=16, pady=(0, 16))
-        ttk.Button(admin, text="Add Custom Repair Case", command=self.add_custom_case_window).pack(side="left")
-        ttk.Button(admin, text="Open Project Folder", command=self.open_folder_hint).pack(side="left", padx=10)
 
     def render_symptoms(self):
         for child in self.symptom_frame.winfo_children():
@@ -263,8 +237,6 @@ class RepairDiagnosisApp(tk.Tk):
         self.lbl_fault_name.config(text="—")
         for lbl in self._summary_labels.values():
             lbl.config(text="—", fg="#172033")
-        self.lbl_decision.config(text="—", fg="#16a34a", bg="#f0fdf4")
-        self.box_decision.config(bg="#f0fdf4")
         self.lbl_symptoms.config(text="—")
         self.lbl_advice.config(text="—")
 
@@ -288,8 +260,6 @@ class RepairDiagnosisApp(tk.Tk):
                 row["label"],
                 row["severity"],
                 row["cost"],
-                row["backup"],
-                row.get("decision", "-"),
             ))
         if rows:
             self.tree.selection_set("0")
@@ -297,15 +267,6 @@ class RepairDiagnosisApp(tk.Tk):
 
     def _severity_color(self, severity):
         return {"low": "#16a34a", "medium": "#d97706", "high": "#ea580c", "critical": "#dc2626"}.get(severity, "#172033")
-
-    def _decision_style(self, decision):
-        d = decision.lower()
-        if "replace device" in d:
-            return "#dc2626", "#fef2f2"
-        elif "backup" in d or "replace" in d or "compare" in d:
-            return "#d97706", "#fffbeb"
-        else:
-            return "#16a34a", "#f0fdf4"
 
     def show_selected_detail(self, event=None):
         selected = self.tree.selection()
@@ -318,72 +279,11 @@ class RepairDiagnosisApp(tk.Tk):
         self._summary_labels["Match"].config(text=f"{row['match_count']}/{row['match_total']}")
         self._summary_labels["Severity"].config(text=row["severity"].upper(), fg=self._severity_color(row["severity"]))
         self._summary_labels["Cost"].config(text=row["cost"])
-        self._summary_labels["Backup"].config(text=row["backup"])
 
-        # Box 2: Decision
-        decision = row.get("decision", "-")
-        fg, bg = self._decision_style(decision)
-        self.lbl_decision.config(text=f"➤  {decision}", fg=fg, bg=bg)
-        self.box_decision.config(bg=bg)
-        for w in self.box_decision.winfo_children():
-            if isinstance(w, tk.Label) and w != self.lbl_decision:
-                w.config(bg=bg)
-
-        # Box 3: Symptoms + Advice
+        # Box 2: Symptoms + Advice
         matched = row["matched"].replace(",", ",  ") if row["matched"] else "—"
         self.lbl_symptoms.config(text=matched)
         self.lbl_advice.config(text=row["advice"])
-
-    def add_custom_case_window(self):
-        win = tk.Toplevel(self)
-        win.title("Add Custom Repair Case")
-        win.geometry("520x520")
-        win.configure(bg="#f4f7fb")
-
-        fields = {}
-        labels = [
-            ("device", "Device (laptop/phone)"),
-            ("fault", "Fault name"),
-            ("symptoms", "Symptoms, comma separated atoms"),
-            ("severity", "Severity (low/medium/high/critical)"),
-            ("cost", "Cost (low/medium/high)"),
-            ("backup", "Backup needed (yes/no)"),
-            ("advice", "Repair advice"),
-        ]
-        for key, label in labels:
-            ttk.Label(win, text=label, background="#f4f7fb", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=18, pady=(10, 2))
-            entry = ttk.Entry(win, width=70)
-            entry.pack(fill="x", padx=18)
-            fields[key] = entry
-
-        fields["device"].insert(0, self.device_var.get())
-        fields["severity"].insert(0, "medium")
-        fields["cost"].insert(0, "medium")
-        fields["backup"].insert(0, "no")
-
-        def save_case():
-            device = safe_atom(fields["device"].get())
-            fault = safe_atom(fields["fault"].get())
-            symptoms = [safe_atom(s) for s in fields["symptoms"].get().split(",") if s.strip()]
-            severity = safe_atom(fields["severity"].get())
-            cost = safe_atom(fields["cost"].get())
-            backup = safe_atom(fields["backup"].get())
-            advice = fields["advice"].get().replace('"', "'")
-            label = fields["fault"].get().replace('"', "'").strip() or fault
-            if not symptoms:
-                messagebox.showwarning("Missing symptoms", "Add at least one symptom atom.")
-                return
-            with open(CUSTOM_FILE, "a", encoding="utf-8") as f:
-                f.write(f'\nfault_info({fault}, {device}, "{label}", {severity}, {cost}, "{advice}", {backup}).\n')
-                f.write(f'fault_symptoms({device}, {fault}, {prolog_list(symptoms)}).\n')
-            messagebox.showinfo("Saved", "Custom case saved to custom_cases.pl. Restart app or diagnose again.")
-            win.destroy()
-
-        ttk.Button(win, text="Save Custom Case", command=save_case).pack(pady=20)
-
-    def open_folder_hint(self):
-        messagebox.showinfo("Project Folder", f"Project folder:\n{BASE_DIR}")
-
 
 if __name__ == "__main__":
     app = RepairDiagnosisApp()

@@ -40,8 +40,8 @@ likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     score_fault(Device, Fault, Score, MatchCount, Total, Matched),
     Score >= 50.
 
-compare_score(Order, result(FaultA, ScoreA, _, _, _, _, _, _, MatchA, TotalA),
-                    result(FaultB, ScoreB, _, _, _, _, _, _, MatchB, TotalB)) :-
+compare_score(Order, result(FaultA, ScoreA, _, _, _, _, _, MatchA, TotalA),
+                    result(FaultB, ScoreB, _, _, _, _, _, MatchB, TotalB)) :-
     ( ScoreA > ScoreB -> Order = '<'
     ; ScoreA < ScoreB -> Order = '>'
     ; MatchA > MatchB -> Order = '<'
@@ -52,9 +52,9 @@ compare_score(Order, result(FaultA, ScoreA, _, _, _, _, _, _, MatchA, TotalA),
     ).
 
 make_result(Device,
-            result(Fault, Score, Label, Severity, Cost, BackupNeeded, Advice, Matched, MatchCount, Total)) :-
+            result(Fault, Score, Label, Severity, Cost, Advice, Matched, MatchCount, Total)) :-
     likely_fault(Device, Fault, Score, MatchCount, Total, Matched),
-    fault_info(Fault, Device, Label, Severity, Cost, Advice, BackupNeeded).
+    fault_info(Fault, Device, Label, Severity, Cost, Advice).
 
 diagnose(Device, ResultsSorted) :-
     findall(Result, make_result(Device, Result), Results),

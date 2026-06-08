@@ -5,8 +5,6 @@
 %
 % Each rule states which symptoms usually indicate a fault.
 
-:- multifile fault_symptoms/3.
-
 fault_symptoms(laptop, battery_failure,
     [battery_drain, random_shutdown, no_power]).
 fault_symptoms(laptop, charger_or_port_issue,
