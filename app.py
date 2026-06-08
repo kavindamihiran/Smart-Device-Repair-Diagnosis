@@ -198,20 +198,60 @@ class RepairDiagnosisApp(tk.Tk):
         self.summary_grid.pack(fill="x", pady=(6, 0))
         self._summary_labels = {}
         for col, key in enumerate(["Match", "Severity", "Cost"]):
-            tk.Label(self.summary_grid, text=key, font=("Segoe UI", 9, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 24))
-            lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 10), bg="#eef2ff", fg="#172033")
+            tk.Label(self.summary_grid, text=key, font=("Segoe UI", 10, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 30))
+            lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 12, "bold"), bg="#eef2ff", fg="#172033")
             lbl.grid(row=1, column=col, sticky="w", padx=(0, 24))
             self._summary_labels[key] = lbl
 
-        # Box 2: Matched Symptoms + Repair Advice
-        self.box_advice = tk.Frame(detail_area, bg="#fffbeb", relief="groove", bd=1, padx=14, pady=10)
-        self.box_advice.pack(fill="both", expand=True, pady=(0, 0))
-        tk.Label(self.box_advice, text="Matched Symptoms", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
-        self.lbl_symptoms = tk.Label(self.box_advice, text="—", font=("Segoe UI", 10), bg="#fffbeb", fg="#475569", anchor="w", wraplength=500, justify="left")
-        self.lbl_symptoms.pack(fill="x", pady=(2, 8))
-        tk.Label(self.box_advice, text="Repair Advice", font=("Segoe UI", 9, "bold"), bg="#fffbeb", fg="#596579", anchor="w").pack(fill="x")
-        self.lbl_advice = tk.Label(self.box_advice, text="—", font=("Segoe UI", 10), bg="#fffbeb", fg="#1e3a5f", anchor="nw", wraplength=500, justify="left")
-        self.lbl_advice.pack(fill="both", expand=True, pady=(2, 0))
+        # Box 2: Matched Symptoms
+        symptoms_tab = tk.Frame(detail_area, bg="#ecfeff", relief="groove", bd=1, padx=16, pady=12)
+        symptoms_tab.pack(fill="both", expand=True, pady=(0, 8))
+        tk.Label(
+            symptoms_tab,
+            text="Matched Symptoms",
+            font=("Segoe UI", 12, "bold"),
+            bg="#ecfeff",
+            fg="#0e7490",
+            anchor="w",
+        ).pack(fill="x")
+        self.lbl_symptoms = tk.Label(
+            symptoms_tab,
+            text="—",
+            font=("Segoe UI", 11, "bold"),
+            bg="#cffafe",
+            fg="#164e63",
+            anchor="nw",
+            wraplength=560,
+            justify="left",
+            padx=12,
+            pady=12,
+        )
+        self.lbl_symptoms.pack(fill="both", expand=True, pady=(10, 0))
+
+        # Box 3: Repair Advice
+        advice_tab = tk.Frame(detail_area, bg="#fff7ed", relief="groove", bd=1, padx=16, pady=12)
+        advice_tab.pack(fill="both", expand=True, pady=(0, 0))
+        tk.Label(
+            advice_tab,
+            text="Repair Advice",
+            font=("Segoe UI", 12, "bold"),
+            bg="#fff7ed",
+            fg="#c2410c",
+            anchor="w",
+        ).pack(fill="x")
+        self.lbl_advice = tk.Label(
+            advice_tab,
+            text="—",
+            font=("Segoe UI", 11, "bold"),
+            bg="#ffedd5",
+            fg="#7c2d12",
+            anchor="nw",
+            wraplength=560,
+            justify="left",
+            padx=12,
+            pady=12,
+        )
+        self.lbl_advice.pack(fill="both", expand=True, pady=(10, 0))
 
     def render_symptoms(self):
         for child in self.symptom_frame.winfo_children():
@@ -280,7 +320,7 @@ class RepairDiagnosisApp(tk.Tk):
         self._summary_labels["Severity"].config(text=row["severity"].upper(), fg=self._severity_color(row["severity"]))
         self._summary_labels["Cost"].config(text=row["cost"])
 
-        # Box 2: Symptoms + Advice
+        # Box 2 and 3: Symptoms and Advice
         matched = row["matched"].replace(",", ",  ") if row["matched"] else "—"
         self.lbl_symptoms.config(text=matched)
         self.lbl_advice.config(text=row["advice"])
