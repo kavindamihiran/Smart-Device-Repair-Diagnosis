@@ -6,12 +6,14 @@
 # =========================================================
 
 import os
+import re
 import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROLOG_FILE = os.path.join(BASE_DIR, "repair_expert.pl")
+CUSTOM_FILE = os.path.join(BASE_DIR, "custom_cases.pl")
 
 SYMPTOMS = {
     "laptop": [
@@ -50,6 +52,15 @@ SYMPTOMS = {
     ],
 }
 
+
+def safe_atom(text: str) -> str:
+    """Convert user text to a safe Prolog atom-like identifier."""
+    text = text.lower().strip()
+    text = re.sub(r"[^a-z0-9_]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+    return text or "custom_fault"
+
+
 def prolog_list(items):
     """Build a Prolog list of atoms from Python strings."""
     return "[" + ",".join(items) + "]"
@@ -60,7 +71,7 @@ def run_prolog_diagnosis(device, symptoms):
     if not os.path.exists(PROLOG_FILE):
         raise FileNotFoundError("repair_expert.pl was not found in the project folder.")
 
-    goal = f"run_diagnosis({device}, {prolog_list(symptoms)})"
+    goal = f"run_diagnosis_for_ui({device}, {prolog_list(symptoms)})"
     command = ["swipl", "-q", "-s", PROLOG_FILE, "-g", goal]
 
     completed = subprocess.run(
@@ -253,6 +264,11 @@ class RepairDiagnosisApp(tk.Tk):
         )
         self.lbl_advice.pack(fill="both", expand=True, pady=(10, 0))
 
+        admin = ttk.Frame(right, style="Card.TFrame")
+        admin.pack(fill="x", padx=16, pady=(0, 16))
+        ttk.Button(admin, text="Add Custom Repair Case", command=self.add_custom_case_window).pack(side="left")
+        ttk.Button(admin, text="Open Project Folder", command=self.open_folder_hint).pack(side="left", padx=10)
+
     def render_symptoms(self):
         for child in self.symptom_frame.winfo_children():
             child.destroy()
@@ -324,6 +340,60 @@ class RepairDiagnosisApp(tk.Tk):
         matched = row["matched"].replace(",", ",  ") if row["matched"] else "—"
         self.lbl_symptoms.config(text=matched)
         self.lbl_advice.config(text=row["advice"])
+
+    def add_custom_case_window(self):
+        win = tk.Toplevel(self)
+        win.title("Add Custom Repair Case")
+        win.geometry("520x470")
+        win.configure(bg="#f4f7fb")
+
+        fields = {}
+        labels = [
+            ("device", "Device (laptop/phone)"),
+            ("fault", "Fault name"),
+            ("symptoms", "Symptoms, comma separated atoms"),
+            ("severity", "Severity (low/medium/high/critical)"),
+            ("cost", "Cost (low/medium/high)"),
+            ("advice", "Repair advice"),
+        ]
+        for key, label in labels:
+            ttk.Label(win, text=label, background="#f4f7fb", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=18, pady=(10, 2))
+            if key == "device":
+                field = ttk.Combobox(win, values=["laptop", "phone"], state="readonly", width=67)
+            elif key == "severity":
+                field = ttk.Combobox(win, values=["low", "medium", "high", "critical"], state="readonly", width=67)
+            elif key == "cost":
+                field = ttk.Combobox(win, values=["low", "medium", "high"], state="readonly", width=67)
+            else:
+                field = ttk.Entry(win, width=70)
+            field.pack(fill="x", padx=18)
+            fields[key] = field
+
+        fields["device"].set(self.device_var.get())
+        fields["severity"].set("medium")
+        fields["cost"].set("medium")
+
+        def save_case():
+            device = safe_atom(fields["device"].get())
+            fault = safe_atom(fields["fault"].get())
+            symptoms = [safe_atom(s) for s in fields["symptoms"].get().split(",") if s.strip()]
+            severity = safe_atom(fields["severity"].get())
+            cost = safe_atom(fields["cost"].get())
+            advice = fields["advice"].get().replace('"', "'")
+            label = fields["fault"].get().replace('"', "'").strip() or fault
+            if not symptoms:
+                messagebox.showwarning("Missing symptoms", "Add at least one symptom atom.")
+                return
+            with open(CUSTOM_FILE, "a", encoding="utf-8") as f:
+                f.write(f'\nfault_info({fault}, {device}, "{label}", {severity}, {cost}, "{advice}").\n')
+                f.write(f'fault_symptoms({device}, {fault}, {prolog_list(symptoms)}).\n')
+            messagebox.showinfo("Saved", "Custom case saved to custom_cases.pl. Diagnose again to use it.")
+            win.destroy()
+
+        ttk.Button(win, text="Save Custom Case", command=save_case).pack(pady=20)
+
+    def open_folder_hint(self):
+        messagebox.showinfo("Project Folder", f"Project folder:\n{BASE_DIR}")
 
 if __name__ == "__main__":
     app = RepairDiagnosisApp()

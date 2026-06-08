@@ -7,6 +7,8 @@
 % Severity: low | medium | high | critical
 % Cost: low | medium | high
 
+:- multifile fault_info/6.
+
 fault_info(battery_failure, laptop, "Battery Failure", high, medium,
     "Replace the battery. Also check adapter health and charging cycle count.").
 fault_info(charger_or_port_issue, laptop, "Charger or Charging Port Issue", medium, low,

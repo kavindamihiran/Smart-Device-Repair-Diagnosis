@@ -14,8 +14,9 @@ A rule-based expert system that diagnoses common laptop and phone repair issues 
 - **Symptom-based Diagnosis:** Select symptoms from checkboxes, get ranked fault matches
 - **Match Scoring:** Each fault shows how many symptoms matched out of total required (e.g. 2/3 means 2 out of 3 symptoms matched)
 - **Detailed Repair Advice:** Severity, cost, and actionable repair steps
-- **Easy Manual Updates:** Add new faults in `repair_faults.pl` and their symptoms in `repair_rules.pl`
-- **Prolog Concepts Used:** `assertz/1`, `retractall/1`, `findall/3`, `member/2`, `forall/2`, `dynamic/1`, backtracking, list processing
+- **Dynamic Knowledge Base:** Add custom repair cases from the UI, stored in `custom_cases.pl`
+- **Manual Updates:** You can also add new faults in `repair_faults.pl` and their symptoms in `repair_rules.pl`
+- **Prolog Concepts Used:** `assertz/1`, `retractall/1`, `findall/3`, `member/2`, `forall/2`, `dynamic/1`, `multifile/1`, backtracking, list processing
 
 ## Project Files
 
@@ -27,7 +28,9 @@ A rule-based expert system that diagnoses common laptop and phone repair issues 
 | `repair_rules.pl` | Diagnostic rules that connect faults to required symptoms |
 | `repair_engine.pl` | Working memory, symptom matching, scoring, and ranking logic |
 | `repair_io.pl` | Terminal output and Python UI output formatter |
+| `repair_admin.pl` | Predicates for adding/removing custom repair cases |
 | `app.py` | Python Tkinter graphical interface |
+| `custom_cases.pl` | Auto-generated file for custom repair cases |
 
 ## Prolog Module Structure
 
@@ -40,6 +43,8 @@ repair_expert.pl
   -> repair_rules.pl
   -> repair_engine.pl
   -> repair_io.pl
+  -> repair_admin.pl
+  -> custom_cases.pl, if it exists
 ```
 
 Main diagnosis flow:
@@ -49,8 +54,10 @@ run_diagnosis(Device, Symptoms)
   -> clear_observations
   -> add_symptom_list
   -> diagnose
-  -> print_results
+  -> print_terminal_results
 ```
+
+`run_diagnosis/2` prints readable terminal output. The Python interface uses `run_diagnosis_for_ui/2`, which prints machine-readable rows for `app.py`.
 
 ## Requirements
 

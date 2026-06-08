@@ -1,0 +1,13 @@
+% =========================================================
+% Module 7: Dynamic Knowledge Base Administration
+% =========================================================
+% These predicates show how new repair cases can be added or
+% removed while Prolog is running.
+
+add_custom_case(Device, Fault, Label, Symptoms, Severity, Cost, Advice) :-
+    assertz(fault_info(Fault, Device, Label, Severity, Cost, Advice)),
+    assertz(fault_symptoms(Device, Fault, Symptoms)).
+
+remove_case(Fault) :-
+    retractall(fault_info(Fault, _, _, _, _, _)),
+    retractall(fault_symptoms(_, Fault, _)).
