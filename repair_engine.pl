@@ -42,10 +42,10 @@ likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
 
 compare_score(Order, result(FaultA, ScoreA, _, _, _, _, _, MatchA, TotalA),
                     result(FaultB, ScoreB, _, _, _, _, _, MatchB, TotalB)) :-
-    ( ScoreA > ScoreB -> Order = '<'
-    ; ScoreA < ScoreB -> Order = '>'
-    ; MatchA > MatchB -> Order = '<'
+    ( MatchA > MatchB -> Order = '<'
     ; MatchA < MatchB -> Order = '>'
+    ; ScoreA > ScoreB -> Order = '<'
+    ; ScoreA < ScoreB -> Order = '>'
     ; TotalA > TotalB -> Order = '<'
     ; TotalA < TotalB -> Order = '>'
     ; compare(Order, FaultA, FaultB)
