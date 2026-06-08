@@ -34,7 +34,10 @@ score_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     length(Required, Total),
     Total > 0,
     MatchCount > 0,
-    Score is (MatchCount * 100) // Total.
+    % Score uses both completeness and evidence amount, so 2/3 is stronger than 1/1.
+    MatchPercent is (MatchCount * 100) // Total,
+    EvidenceWeight is min(MatchCount * 50, 100),
+    Score is (MatchPercent + EvidenceWeight) // 2.
 
 likely_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     score_fault(Device, Fault, Score, MatchCount, Total, Matched),

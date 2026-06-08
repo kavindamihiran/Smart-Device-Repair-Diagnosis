@@ -6,7 +6,7 @@
 
 ## Overview
 
-A rule-based expert system that diagnoses common laptop and phone repair issues from user-selected symptoms. The Prolog backend reasons over the symptoms and returns possible faults, confidence scores, severity levels, estimated cost, and repair advice.
+A rule-based expert system that diagnoses common laptop and phone repair issues from user-selected symptoms. The Prolog backend reasons over the symptoms and returns possible faults, weighted scores, severity levels, estimated cost, and repair advice.
 
 ## Features
 
