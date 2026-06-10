@@ -143,7 +143,7 @@ class RepairDiagnosisApp(tk.Tk):
         style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=8)
         style.configure("Accent.TButton", background="#2563eb", foreground="white")
         style.configure("TCheckbutton", background="white", font=("Segoe UI", 10))
-        style.configure("Treeview", font=("Segoe UI", 10), rowheight=30)
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=26)
         style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
 
     def _build_layout(self):
@@ -164,6 +164,7 @@ class RepairDiagnosisApp(tk.Tk):
 
         right = ttk.Frame(body, style="Card.TFrame")
         right.pack(side="right", fill="both", expand=True, padx=(12, 0), ipadx=18, ipady=16)
+        right.bind("<Configure>", self._resize_results_layout)
 
         ttk.Label(left, text="1. Select Device", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
         device_row = ttk.Frame(left, style="Card.TFrame")
@@ -173,50 +174,66 @@ class RepairDiagnosisApp(tk.Tk):
 
         ttk.Label(left, text="2. Select Symptoms", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(0, 8))
 
-        self.symptom_canvas = tk.Canvas(left, width=390, height=390, bg="white", highlightthickness=0)
-        self.symptom_frame = ttk.Frame(self.symptom_canvas, style="Card.TFrame")
-        self.symptom_scroll = ttk.Scrollbar(left, orient="vertical", command=self.symptom_canvas.yview)
-        self.symptom_canvas.configure(yscrollcommand=self.symptom_scroll.set)
-        self.symptom_canvas.pack(side="left", fill="both", expand=True, padx=(16, 0), pady=(0, 12))
-        self.symptom_scroll.pack(side="right", fill="y", padx=(0, 16), pady=(0, 12))
-        self.symptom_canvas.create_window((0, 0), window=self.symptom_frame, anchor="nw")
-        self.symptom_frame.bind("<Configure>", lambda e: self.symptom_canvas.configure(scrollregion=self.symptom_canvas.bbox("all")))
-
         button_row = ttk.Frame(left, style="Card.TFrame")
-        button_row.pack(fill="x", padx=16, pady=(0, 16))
+        button_row.pack(side="bottom", fill="x", padx=16, pady=(0, 16))
         ttk.Button(button_row, text="Diagnose Now", style="Accent.TButton", command=self.diagnose).pack(side="left", fill="x", expand=True)
         ttk.Button(button_row, text="Clear", command=self.clear_selection).pack(side="left", padx=(10, 0))
 
+        symptom_area = ttk.Frame(left, style="Card.TFrame")
+        symptom_area.pack(fill="both", expand=True, padx=16, pady=(0, 12))
+
+        self.symptom_canvas = tk.Canvas(symptom_area, width=390, bg="white", highlightthickness=0)
+        self.symptom_frame = ttk.Frame(self.symptom_canvas, style="Card.TFrame")
+        self.symptom_scroll = ttk.Scrollbar(symptom_area, orient="vertical", command=self.symptom_canvas.yview)
+        self.symptom_canvas.configure(yscrollcommand=self.symptom_scroll.set)
+        self.symptom_canvas.pack(side="left", fill="both", expand=True)
+        self.symptom_scroll.pack(side="right", fill="y")
+        self.symptom_window = self.symptom_canvas.create_window((0, 0), window=self.symptom_frame, anchor="nw")
+        self.symptom_frame.bind("<Configure>", lambda e: self.symptom_canvas.configure(scrollregion=self.symptom_canvas.bbox("all")))
+        self.symptom_canvas.bind(
+            "<Configure>",
+            lambda event: self.symptom_canvas.itemconfigure(self.symptom_window, width=event.width),
+        )
+
         ttk.Label(right, text="Diagnosis Results", style="CardTitle.TLabel").pack(anchor="w", padx=16, pady=(16, 8))
         columns = ("match", "score", "fault", "severity", "cost")
-        self.tree = ttk.Treeview(right, columns=columns, show="headings", height=8)
+        self.tree = ttk.Treeview(right, columns=columns, show="headings", height=4)
         for col, heading, width in [("match", "Match", 70), ("score", "Score", 70), ("fault", "Fault", 240), ("severity", "Severity", 90), ("cost", "Cost", 80)]:
             self.tree.heading(col, text=heading)
             self.tree.column(col, width=width, anchor="w")
         self.tree.pack(fill="x", padx=16, pady=(0, 12))
         self.tree.bind("<<TreeviewSelect>>", self.show_selected_detail)
 
+        admin = ttk.Frame(right, style="Card.TFrame")
+        admin.pack(side="bottom", fill="x", padx=16, pady=(0, 16))
+        ttk.Button(admin, text="Add Custom Repair Case", command=self.add_custom_case_window).pack(side="left")
+        ttk.Button(admin, text="Open Project Folder", command=self.open_folder_hint).pack(side="left", padx=10)
+
         # --- Detail area: summary and advice boxes ---
         detail_area = ttk.Frame(right, style="Card.TFrame")
         detail_area.pack(fill="both", expand=True, padx=16, pady=(8, 8))
+        detail_area.columnconfigure(0, weight=1)
+        detail_area.rowconfigure(1, weight=1)
+        detail_area.rowconfigure(2, weight=1)
 
         # Box 1: Fault Summary
-        self.box_summary = tk.Frame(detail_area, bg="#eef2ff", relief="groove", bd=1, padx=14, pady=10)
-        self.box_summary.pack(fill="x", pady=(0, 6))
+        self.box_summary = tk.Frame(detail_area, bg="#eef2ff", relief="groove", bd=1, padx=12, pady=7)
+        self.box_summary.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         self.lbl_fault_name = tk.Label(self.box_summary, text="—", font=("Segoe UI", 13, "bold"), bg="#eef2ff", fg="#172033", anchor="w")
         self.lbl_fault_name.pack(fill="x")
         self.summary_grid = tk.Frame(self.box_summary, bg="#eef2ff")
         self.summary_grid.pack(fill="x", pady=(6, 0))
         self._summary_labels = {}
         for col, key in enumerate(["Match", "Score", "Severity", "Cost"]):
-            tk.Label(self.summary_grid, text=key, font=("Segoe UI", 10, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w", padx=(0, 30))
+            self.summary_grid.columnconfigure(col, weight=1)
+            tk.Label(self.summary_grid, text=key, font=("Segoe UI", 10, "bold"), bg="#eef2ff", fg="#596579").grid(row=0, column=col, sticky="w")
             lbl = tk.Label(self.summary_grid, text="—", font=("Segoe UI", 12, "bold"), bg="#eef2ff", fg="#172033")
-            lbl.grid(row=1, column=col, sticky="w", padx=(0, 24))
+            lbl.grid(row=1, column=col, sticky="w")
             self._summary_labels[key] = lbl
 
         # Box 2: Matched Symptoms
-        symptoms_tab = tk.Frame(detail_area, bg="#ecfeff", relief="groove", bd=1, padx=16, pady=12)
-        symptoms_tab.pack(fill="both", expand=True, pady=(0, 8))
+        symptoms_tab = tk.Frame(detail_area, bg="#ecfeff", relief="groove", bd=1, padx=12, pady=8)
+        symptoms_tab.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
         tk.Label(
             symptoms_tab,
             text="Matched Symptoms",
@@ -228,20 +245,24 @@ class RepairDiagnosisApp(tk.Tk):
         self.lbl_symptoms = tk.Label(
             symptoms_tab,
             text="—",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 10, "bold"),
             bg="#cffafe",
             fg="#164e63",
             anchor="nw",
-            wraplength=560,
             justify="left",
-            padx=12,
-            pady=12,
+            padx=10,
+            pady=8,
+            relief="flat",
         )
-        self.lbl_symptoms.pack(fill="both", expand=True, pady=(10, 0))
+        self.lbl_symptoms.pack(fill="both", expand=True, pady=(6, 0))
+        symptoms_tab.bind(
+            "<Configure>",
+            lambda event: self.lbl_symptoms.configure(wraplength=max(event.width - 44, 1)),
+        )
 
         # Box 3: Repair Advice
-        advice_tab = tk.Frame(detail_area, bg="#fff7ed", relief="groove", bd=1, padx=16, pady=12)
-        advice_tab.pack(fill="both", expand=True, pady=(0, 0))
+        advice_tab = tk.Frame(detail_area, bg="#fff7ed", relief="groove", bd=1, padx=12, pady=8)
+        advice_tab.grid(row=2, column=0, sticky="nsew")
         tk.Label(
             advice_tab,
             text="Repair Advice",
@@ -253,21 +274,20 @@ class RepairDiagnosisApp(tk.Tk):
         self.lbl_advice = tk.Label(
             advice_tab,
             text="—",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 10, "bold"),
             bg="#ffedd5",
             fg="#7c2d12",
             anchor="nw",
-            wraplength=560,
             justify="left",
-            padx=12,
-            pady=12,
+            padx=10,
+            pady=8,
+            relief="flat",
         )
-        self.lbl_advice.pack(fill="both", expand=True, pady=(10, 0))
-
-        admin = ttk.Frame(right, style="Card.TFrame")
-        admin.pack(fill="x", padx=16, pady=(0, 16))
-        ttk.Button(admin, text="Add Custom Repair Case", command=self.add_custom_case_window).pack(side="left")
-        ttk.Button(admin, text="Open Project Folder", command=self.open_folder_hint).pack(side="left", padx=10)
+        self.lbl_advice.pack(fill="both", expand=True, pady=(6, 0))
+        advice_tab.bind(
+            "<Configure>",
+            lambda event: self.lbl_advice.configure(wraplength=max(event.width - 44, 1)),
+        )
 
     def render_symptoms(self):
         for child in self.symptom_frame.winfo_children():
@@ -288,6 +308,18 @@ class RepairDiagnosisApp(tk.Tk):
         for row in self.tree.get_children():
             self.tree.delete(row)
         self._clear_detail_boxes()
+
+    def _resize_results_layout(self, event):
+        if not hasattr(self, "tree"):
+            return
+        if event.height < 520:
+            rows = 3
+        elif event.height < 650:
+            rows = 4
+        else:
+            rows = 6
+        if int(self.tree.cget("height")) != rows:
+            self.tree.configure(height=rows)
 
     def _clear_detail_boxes(self):
         self.lbl_fault_name.config(text="—")
