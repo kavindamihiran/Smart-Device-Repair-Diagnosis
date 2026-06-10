@@ -47,10 +47,30 @@ print_ui_result_line(result(Fault, Score, Label, Severity, Cost, Advice, Matched
     format('RESULT|~w|~d|~d|~d|~w|~w|~w|~s|~s~n',
            [Fault, Score, MatchCount, Total, Severity, Cost, Label, Advice, MatchedText]).
 
-% backtracking demonstration: prints all known faults one by one.
+% call/1 and fail force Prolog to print every solution by backtracking.
 list_all_faults :-
-    fault_info(Fault, Device, Label, Severity, Cost, _Advice),
+    call(fault_info(Fault, Device, Label, Severity, Cost, _)),
     format('~w | ~w | ~s | severity=~w | cost=~w~n',
            [Device, Fault, Label, Severity, Cost]),
     fail.
 list_all_faults.
+
+% bagof/3 groups faults when Severity is left as a variable.
+faults_by_severity(Device, Severity, Faults) :-
+    bagof(
+        Fault,
+        Label^Cost^Advice^fault_info(
+            Fault, Device, Label, Severity, Cost, Advice
+        ),
+        Faults
+    ).
+
+% setof/3 returns sorted fault atoms without duplicates.
+sorted_faults(Device, Faults) :-
+    setof(
+        Fault,
+        Label^Severity^Cost^Advice^fault_info(
+            Fault, Device, Label, Severity, Cost, Advice
+        ),
+        Faults
+    ).

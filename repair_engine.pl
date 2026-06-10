@@ -8,12 +8,16 @@
 % Dynamic observed symptoms
 % -----------------------------
 
-clear_observations :- retractall(observed_symptom(_)).
+clear_observations :-
+    retractall(observed_symptom(_)).
 
+% The cut makes duplicate insertion deterministic: once an observation
+% already exists, Prolog must not backtrack into the assertz/1 clause.
 add_observed_symptom(Symptom) :-
-    \+ observed_symptom(Symptom),
+    observed_symptom(Symptom),
+    !.
+add_observed_symptom(Symptom) :-
     assertz(observed_symptom(Symptom)).
-add_observed_symptom(_).
 
 add_symptom_list([]).
 add_symptom_list([H|T]) :-
@@ -21,17 +25,54 @@ add_symptom_list([H|T]) :-
     add_symptom_list(T).
 
 % -----------------------------
+% Recursive list predicates
+% -----------------------------
+% These are project versions of member/2, append/3, and length/2.
+
+repair_member(Item, [Item|_]).
+repair_member(Item, [_|Tail]) :-
+    repair_member(Item, Tail).
+
+repair_append([], List, List).
+repair_append([Head|Tail], List, [Head|CombinedTail]) :-
+    repair_append(Tail, List, CombinedTail).
+
+repair_length([], 0).
+repair_length([_|Tail], Length) :-
+    repair_length(Tail, TailLength),
+    Length is TailLength + 1.
+
+% -----------------------------
 % Matching and scoring logic
 % -----------------------------
 
 matched_symptoms(Required, Matched) :-
-    findall(S, (member(S, Required), observed_symptom(S)), Matched).
+    findall(
+        Symptom,
+        (
+            repair_member(Symptom, Required),
+            observed_symptom(Symptom)
+        ),
+        Matched
+    ).
+
+missing_symptoms(Required, Missing) :-
+    findall(
+        Symptom,
+        (
+            repair_member(Symptom, Required),
+            \+ observed_symptom(Symptom)
+        ),
+        Missing
+    ).
 
 score_fault(Device, Fault, Score, MatchCount, Total, Matched) :-
     fault_symptoms(Device, Fault, Required),
     matched_symptoms(Required, Matched),
-    length(Matched, MatchCount),
-    length(Required, Total),
+    missing_symptoms(Required, Missing),
+    repair_append(Matched, Missing, ClassifiedSymptoms),
+    repair_length(Matched, MatchCount),
+    repair_length(ClassifiedSymptoms, Total),
     Total > 0,
     MatchCount > 0,
     % Score uses both completeness and evidence amount, so 2/3 is stronger than 1/1.

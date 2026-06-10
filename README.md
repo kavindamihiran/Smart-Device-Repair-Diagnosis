@@ -16,7 +16,10 @@ A rule-based expert system that diagnoses common laptop and phone repair issues 
 - **Detailed Repair Advice:** Severity, cost, and actionable repair steps
 - **Dynamic Knowledge Base:** Add custom repair cases from the UI, stored in `custom_cases.pl`
 - **Manual Updates:** You can also add new faults in `repair_faults.pl` and their symptoms in `repair_rules.pl`
-- **Prolog Concepts Used:** `assertz/1`, `retractall/1`, `findall/3`, `member/2`, `forall/2`, `dynamic/1`, `multifile/1`, backtracking, list processing
+- **Prolog Concepts Used:** facts, rules, recursion, lists, custom recursive
+  member/append/length predicates, cut, negation, arithmetic, backtracking,
+  dynamic facts, `findall/3`, `bagof/3`, `setof/3`, `call/1`,
+  `fail`, `forall/2`, and `=../2`
 
 ## Project Files
 
@@ -59,6 +62,14 @@ run_diagnosis(Device, Symptoms)
 
 `run_diagnosis/2` prints readable terminal output. The Python interface uses `run_diagnosis_for_ui/2`, which prints machine-readable rows for `app.py`.
 
+## Where Prolog Concepts Are Used
+
+| Existing file | Main concepts |
+|---|---|
+| `repair_engine.pl` | Recursion, `[H|T]`, `repair_member/2`, `repair_append/3`, `repair_length/2`, cut, negation, `findall/3`, arithmetic, comparisons, if-then-else, sorting |
+| `repair_admin.pl` | `assertz/1`, `retract/1`, `retractall/1`, recursive deletion, `=../2` |
+| `repair_io.pl` | `forall/2`, `call/1`, `fail`, `bagof/3`, `setof/3`, formatted output |
+
 ## Requirements
 
 - **Python 3.x** installed
@@ -92,6 +103,18 @@ You can also run a diagnosis directly from the terminal without opening the Prol
 swipl -q -s repair_expert.pl -g "run_diagnosis(laptop, [overheating,loud_fan,random_shutdown])"
 ```
 
+Some useful concept queries:
+
+```prolog
+?- repair_member(overheating, [no_power, overheating]).
+?- repair_append([overheating], [loud_fan], Combined).
+?- repair_length([no_power, overheating, loud_fan], Length).
+?- delete_from_list(no_power, [no_power, overheating], Remaining).
+?- faults_by_severity(laptop, Severity, Faults).
+?- sorted_faults(phone, Faults).
+?- fault_info_as_list(battery_failure, List).
+```
+
 ## Sample Scenarios
 
 | Scenario | Symptoms | Expected Fault | Match | Severity |
@@ -100,9 +123,9 @@ swipl -q -s repair_expert.pl -g "run_diagnosis(laptop, [overheating,loud_fan,ran
 | Laptop cooling | overheating, loud_fan, slow_performance | Cooling System Problem | 3/4 | high |
 | Laptop power and heat | battery_drain, overheating | Power and Thermal Issue | 2/4 | high |
 | Laptop boot instability | overheating, boot_failure | Thermal Boot Instability | 2/4 | high |
-| Laptop storage | boot_failure, clicking_sound, slow_performance | Hard Disk / SSD Failure | 3/3 | critical |
+| Laptop storage | boot_failure, clicking_sound, random_shutdown, blue_screen | Hard Disk / SSD Failure | 4/4 | critical |
 | Phone display | cracked_screen, black_screen, touch_not_working | Display or Touch Panel Damage | 3/3 | high |
-| Phone power and heat | battery_drain, overheating | Phone Power and Thermal Issue | 2/4 | high |
-| Phone liquid display | water_damage, black_screen | Liquid Display Damage | 2/4 | critical |
+| Phone power and heat | battery_drain, overheating | Charging IC or Battery Circuit Issue | 2/3 | high |
+| Phone liquid display | water_damage, black_screen | Liquid Display Damage | 2/5 | critical |
 | Phone water damage | water_damage, no_power, no_charging | Water Damage | 3/3 | critical |
 | Phone storage | storage_full, slow_performance | Storage Overload | 2/2 | medium |

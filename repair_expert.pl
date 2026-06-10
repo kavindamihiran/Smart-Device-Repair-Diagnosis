@@ -40,3 +40,5 @@ load_custom_cases.
 %    diagnose(laptop, Results).
 % ?- run_diagnosis(phone, [battery_drain,random_shutdown,no_power]).
 % ?- list_all_faults.
+% ?- faults_by_severity(laptop, Severity, Faults).
+% ?- repair_append([overheating], [loud_fan], Combined).
