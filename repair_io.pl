@@ -8,8 +8,8 @@ run_diagnosis(Device, Symptoms) :-
     clear_observations,
     add_symptom_list(Symptoms),
     diagnose(Device, Results),
-    print_terminal_results(Results),
-    halt.
+    print_terminal_results(Results).
+    %halt.
 
 run_diagnosis_for_ui(Device, Symptoms) :-
     clear_observations,
