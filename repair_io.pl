@@ -65,6 +65,7 @@ faults_by_severity(Device, Severity, Faults) :-
         Faults
     ).
 
+
 % setof/3 returns sorted fault atoms without duplicates.
 sorted_faults(Device, Faults) :-
     setof(
@@ -74,3 +75,5 @@ sorted_faults(Device, Faults) :-
         ),
         Faults
     ).
+
+% ex: sorted_faults(Device, Faults), write(Faults), nl,nl,nl, fail.

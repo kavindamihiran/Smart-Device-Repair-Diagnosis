@@ -8,6 +8,11 @@
 
 A rule-based expert system that diagnoses common laptop and phone repair issues from user-selected symptoms. The Prolog backend reasons over the symptoms and returns possible faults, weighted scores, severity levels, estimated cost, and repair advice.
 
+For a complete explanation of the architecture, every predicate and Python
+function, scoring calculations, execution flow, runtime administration, and
+runnable examples, see
+[`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
+
 ## Features
 
 - **Device Selection:** Laptop and Phone support
@@ -19,7 +24,7 @@ A rule-based expert system that diagnoses common laptop and phone repair issues 
 - **Prolog Concepts Used:** facts, rules, recursion, lists, custom recursive
   member/append/length predicates, cut, negation, arithmetic, backtracking,
   dynamic facts, `findall/3`, `bagof/3`, `setof/3`, `call/1`,
-  `fail`, `forall/2`, and `=../2`
+  `fail`, and `forall/2`
 
 ## Project Files
 
@@ -67,7 +72,7 @@ run_diagnosis(Device, Symptoms)
 | Existing file | Main concepts |
 |---|---|
 | `repair_engine.pl` | Recursion, `[H|T]`, `repair_member/2`, `repair_append/3`, `repair_length/2`, cut, negation, `findall/3`, arithmetic, comparisons, if-then-else, sorting |
-| `repair_admin.pl` | `assertz/1`, `retract/1`, `retractall/1`, recursive deletion, `=../2` |
+| `repair_admin.pl` | `assertz/1`, `retractall/1`, and recursive list deletion |
 | `repair_io.pl` | `forall/2`, `call/1`, `fail`, `bagof/3`, `setof/3`, formatted output |
 
 ## Requirements
@@ -112,7 +117,7 @@ Some useful concept queries:
 ?- delete_from_list(no_power, [no_power, overheating], Remaining).
 ?- faults_by_severity(laptop, Severity, Faults).
 ?- sorted_faults(phone, Faults).
-?- fault_info_as_list(battery_failure, List).
+?- fault_info(battery_failure, Device, Label, Severity, Cost, Advice).
 ```
 
 ## Sample Scenarios
